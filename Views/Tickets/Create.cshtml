@@ -1,0 +1,95 @@
+﻿@using PedersenGroupTimeClock.Helpers
+@using static PedersenGroupTimeClock.Models.Enums
+
+@* Views/Ticket/Create.cshtml *@
+@* @model Ticket *@
+@model CreateTicketViewModel
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h2 class="fw-bold">Create New Ticket</h2>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label asp-for="Title" class="form-label">Title</label>
+                            <input asp-for="Title" class="form-control" />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Checklist Items</label>
+                            <div id="checklistContainer">
+                                <div class="checklist-items">
+                                    @* Checklist items will be added dynamically via JavaScript *@
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary mt-2" id="addChecklistItem">
+                                    <i class="fas fa-plus"></i> Add Checklist Item
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label asp-for="Status" class="form-label">Status</label>
+                            <select asp-for="Status" asp-items="Html.GetEnumSelectList<TicketStatus>()" class="form-select"></select>
+                            <span asp-validation-for="Status" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Priority" class="form-label">Priority</label>
+                            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<TicketPriority>()" class="form-select"></select>
+                            <span asp-validation-for="Priority" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="AssignedTo" class="form-label">Assigned To</label>
+                            <select asp-for="AssignedTo" class="form-select" asp-items="ViewBag.Employees">
+                                <option value="">-- Select Employee --</option>
+                            </select>
+                            <span asp-validation-for="AssignedTo" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="RateId" class="form-label">Hourly Rate</label>
+                            <select asp-for="RateId" class="form-select"
+                                    asp-items="@(new SelectList(ViewBag.Rates, "Id", "Name"))">
+                                <option value="">Select a rate...</option>
+                            </select>
+                            <span asp-validation-for="RateId" class="text-danger"></span>
+                            <div id="RateId" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="BudgetHours" class="form-label">Budgeted Hours</label>
+                            <input asp-for="BudgetHours" class="form-control" type="number" step="0.5" min="0" />
+                            <span asp-validation-for="BudgetHours" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-top pt-3">
+                    <button type="submit" class="btn btn-primary">Create Ticket</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

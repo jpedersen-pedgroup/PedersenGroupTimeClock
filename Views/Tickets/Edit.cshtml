@@ -1,0 +1,165 @@
+﻿@using PedersenGroupTimeClock.Helpers
+@using static PedersenGroupTimeClock.Models.Enums
+
+
+@* Views/Ticket/Edit.cshtml *@
+@model Ticket
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h2 class="fw-bold">Edit Ticket</h2>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Edit" method="post">
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="CreatedAt" />
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label asp-for="Title" class="form-label">Title</label>
+                            <input asp-for="Title" class="form-control" />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Checklist Items</label>
+                            <div id="checklistContainer">
+                                <div class="checklist-items">
+                                    @if (Model.ChecklistItems != null)
+                                    {
+                                        foreach (var item in Model.ChecklistItems.OrderBy(i => i.Order))
+                                        {
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control"
+                                                       name="ChecklistItems"
+                                                       value="@item.Description" />
+                                                <button type="button" class="btn btn-outline-danger remove-checklist-item">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary mt-2" id="addChecklistItem">
+                                    <i class="fas fa-plus"></i> Add Checklist Item
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label asp-for="Status" class="form-label">Status</label>
+                            <select asp-for="Status" asp-items="Html.GetEnumSelectList<TicketStatus>()" class="form-select"></select>
+                            <span asp-validation-for="Status" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Priority" class="form-label">Priority</label>
+                            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<TicketPriority>()" class="form-select"></select>
+                            <span asp-validation-for="Priority" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="AssignedTo" class="form-label">Assigned To</label>
+                            <select asp-for="AssignedTo" class="form-select" asp-items="ViewBag.Employees">
+                                <option value="">-- Select Employee --</option>
+                            </select>
+                            <span asp-validation-for="AssignedTo" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="RateId" class="form-label">Hourly Rate</label>
+                            <select asp-for="RateId" class="form-select"
+                                    asp-items="@(new SelectList(ViewBag.Rates, "Id", "Name"))">
+                                <option value="">Select a rate...</option>
+                            </select>
+                            <span asp-validation-for="RateId" class="text-danger"></span>
+                            <div id="selectedRate" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="BudgetHours" class="form-label">Budgeted Hours</label>
+                            <input asp-for="BudgetHours" class="form-control" type="number" min="0" />
+                            <span asp-validation-for="BudgetHours" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-top pt-3">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+
+            @if (Model.TimeEntries != null && Model.TimeEntries.Any())
+
+            {
+                <div class="border-top mt-4 pt-4">
+                    <h5>Time Entries</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Duration</th>
+                                    <th>User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in Model.TimeEntries)
+                                {
+                                    <tr>
+                                        <td>@entry.EntryDate.ToString("MMM dd, yyyy HH:mm")</td>
+                                        <td>@entry.Description</td>
+                                        <td>@entry.Duration.TotalHours.ToString("F1")h</td>
+                                        <td>@entry.EmployeeId</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        let checklistCounter = $('.checklist-items .input-group').length;
+
+        $('#addChecklistItem').click(function() {
+            const newItem = `
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control"
+                           name="ChecklistItems"
+                           placeholder="Enter checklist item" />
+                    <button type="button" class="btn btn-outline-danger remove-checklist-item">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            $('.checklist-items').append(newItem);
+            checklistCounter++;
+        });
+
+        $(document).on('click', '.remove-checklist-item', function() {
+            $(this).closest('.input-group').remove();
+        });
+    </script>
+}

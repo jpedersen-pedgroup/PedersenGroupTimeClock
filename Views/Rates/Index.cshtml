@@ -1,0 +1,58 @@
+﻿@* Views/Rates/Index.cshtml *@
+@model IEnumerable<Rate>
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h2 class="fw-bold">Rate Management</h2>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Rate
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Rate</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Tickets</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rate in Model)
+                        {
+                            <tr>
+                                <td>@rate.Name</td>
+                                <td>@rate.HourlyRate.ToString("C2")/h</td>
+                                <td>@rate.Description</td>
+                                <td>
+                                    <span class="badge bg-@(rate.IsActive ? "success" : "danger")">
+                                        @(rate.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                                <td>@rate.Tickets.Count</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Edit" asp-route-id="@rate.Id"
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a asp-action="History" asp-route-id="@rate.Id"
+                                           class="btn btn-outline-info">
+                                            <i class="fas fa-history"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

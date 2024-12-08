@@ -1,0 +1,77 @@
+﻿@* Views/Employees/Details.cshtml *@
+@model Employee
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h2 class="fw-bold">Employee Details</h2>
+        <div>
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th class="w-25">Name</th>
+                            <td>@Model.FullName</td>
+                        </tr>
+                        <tr>
+                            <th>Email</th>
+                            <td>@Model.Email</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>
+                                <span class="badge bg-@(Model.IsActive ? "success" : "danger")">
+                                    @(Model.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Created</th>
+                            <td>@Model.CreatedAt.ToString("MMM dd, yyyy")</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            @if (Model.TimeEntries?.Any() == true)
+            {
+                <div class="border-top pt-4 mt-4">
+                    <h5>Recent Time Entries</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Ticket</th>
+                                    <th>Description</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in Model.TimeEntries.OrderByDescending(te => te.EntryDate).Take(10))
+                                {
+                                    <tr>
+                                        <td>@entry.EntryDate.ToString("MMM dd, yyyy HH:mm")</td>
+                                        <td>@entry.Ticket?.Title</td>
+                                        <td>@entry.Description</td>
+                                        <td>@entry.Duration.TotalHours.ToString("F1")h</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

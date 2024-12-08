@@ -1,0 +1,126 @@
+﻿@* Views/Ticket/BudgetReport.cshtml *@
+@model Ticket
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h2 class="fw-bold">Budget Report - @Model.Title</h2>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Budget Overview</h5>
+                    <div class="progress mb-3" style="height: 25px;">
+                        @{
+                            var percentageUsed = Model.BudgetHours > 0
+                            ? (decimal)Model.TotalHoursSpent / Model.BudgetHours * 100
+                            : 0;
+                            var progressClass = percentageUsed switch
+                            {
+                                > 100 => "bg-danger",
+                                > 75 => "bg-warning",
+                                _ => "bg-success"
+                            };
+                        }
+                        <div class="progress-bar @progressClass"
+                             role="progressbar"
+                             style="width: @Math.Min(percentageUsed, 100)%">
+                            @percentageUsed.ToString("F1")%
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="small text-muted d-block">Budget Hours</label>
+                            <span class="h5">@Model.BudgetHours.ToString("F1")h</span>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted d-block">Hours Used</label>
+                            <span class="h5">@Model.TotalHoursSpent.ToString("F1")h</span>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted d-block">Hourly Rate</label>
+                            <span class="h5">@Model.HourlyRate.ToString("C2")</span>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted d-block">Budget Remaining</label>
+                            <span class="h5">@Model.BudgetRemaining.ToString("F1")h</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Cost Analysis</h5>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="small text-muted d-block">Budget Cost</label>
+                            <span class="h5">@Model.BudgetCost.ToString("C2")</span>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted d-block">Actual Cost</label>
+                            <span class="h5">@Model.ActualCost.ToString("C2")</span>
+                        </div>
+                        <div class="col-12">
+                            <label class="small text-muted d-block">Variance</label>
+                            <span class="h5 @(Model.BudgetCost - Model.ActualCost < 0 ? "text-danger" : "text-success")">
+                                @((Model.BudgetCost - Model.ActualCost).ToString("C2"))
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Time Entries</h5>
+                    @await Html.PartialAsync("_TimeEntries", Model.TimeEntries)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Time Distribution</h5>
+                    <canvas id="timeDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Daily Time Tracking</h5>
+                    <canvas id="dailyTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="mt-4 mb-5">
+        <button id="exportPdf" class="btn btn-primary">
+            <i class="fas fa-file-pdf me-2"></i>Export as PDF
+        </button>
+        <button id="exportExcel" class="btn btn-success ms-2">
+            <i class="fas fa-file-excel me-2"></i>Export as Excel
+        </button>
+    </div>
+
+    <input type="hidden" id="ticketTitle" value="@Model.Title" />
+    <input type="hidden" id="budgetHours" value="@Model.BudgetHours" />
+    <input type="hidden" id="hoursUsed" value="@Model.TotalHoursSpent" />
+    <input type="hidden" id="hoursRemaining" value="@Model.BudgetRemaining" />
+    <input type="hidden" id="hourlyRate" value="@Model.HourlyRate" />
+    <input type="hidden" id="totalCost" value="@Model.ActualCost" />
+    <input type="hidden" id="dailyTimeData" value="@ViewBag.DailyTimeData" />
+    <input type="hidden" id="timeEntriesData" value="@ViewBag.TimeEntriesData" />
+</div>
