@@ -1,0 +1,284 @@
+﻿@model IEnumerable<ClientReportViewModel>
+
+@{
+    ViewData["Title"] = "Client Reports";
+}
+
+<head>
+    <style>
+        .chart {
+            width: 30vw;
+            height: 40vh;
+        }
+    </style>
+</head>
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h2 class="fw-bold">Client Reports</h2>
+        <div>
+            <button class="btn btn-outline-primary" onclick="exportToPdf()">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </button>
+            <button class="btn btn-outline-success ms-2" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Summary Cards -->
+        <div class="col-12">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Active Clients</h6>
+                            <h2 class="mb-0">@Model.Count()</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Active Tickets</h6>
+                            <h2 class="mb-0">@Model.Sum(c => c.ActiveTickets)</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Hours</h6>
+                            <h2 class="mb-0">@Model.Sum(c => c.TotalHours).ToString("N1")</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Cost</h6>
+                            <h2 class="mb-0">@Model.Sum(c => c.TotalCost).ToString("C0")</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Details -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Client Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th class="text-end">Active Tickets</th>
+                                    <th class="text-end">Hours Used</th>
+                                    <th class="text-end">Budget Hours</th>
+                                    <th class="text-end">Cost</th>
+                                    <th class="text-end">Budget</th>
+                                    <th>Budget Usage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var client in Model)
+                                {
+                                    <tr>
+                                        <td>@client.ClientName</td>
+                                        <td class="text-end">@client.ActiveTickets</td>
+                                        <td class="text-end">@client.TotalHours.ToString("N1")</td>
+                                        <td class="text-end">@client.TotalBudgetedHours.ToString("N1")</td>
+                                        <td class="text-end">@client.TotalCost.ToString("C0")</td>
+                                        <td class="text-end">@client.TotalBudget.ToString("C0")</td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                @{
+                                                    var percentage = client.BudgetUtilizationPercentage;
+                                                    var progressClass = percentage switch
+                                                    {
+                                                        > 100 => "bg-danger",
+                                                        > 75 => "bg-warning",
+                                                        _ => "bg-success"
+                                                    };
+                                                }
+                                                <div class="progress-bar @progressClass"
+                                                     role="progressbar"
+                                                     style="width: @Math.Min(percentage, 100)%">
+                                                    @percentage.ToString("N0")%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Budget Utilization</h5>
+                </div>
+                <div class="card-body chart">
+                    <canvas id="budgetChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Hours Distribution</h5>
+                </div>
+                <div class="card-body chart">
+                    <canvas id="hoursChart" style="height:589px"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Weekly Hours by Client</h5>
+                </div>
+                <div class="card-body chart">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Budget Chart
+            const budgetCtx = document.getElementById('budgetChart').getContext('2d');
+            new Chart(budgetCtx, {
+                type: 'bar',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.Select(c => $"'{c.ClientName}'")))],
+                    datasets: [{
+                        label: 'Budget Usage (%)',
+                        data: [@string.Join(",", Model.Select(c => c.BudgetUtilizationPercentage.ToString("N2")))],
+                        backgroundColor: [@Html.Raw(string.Join(",", Model.Select(c =>
+                        c.BudgetUtilizationPercentage > 100 ? "'rgba(220, 53, 69, 0.7)'" :
+                        c.BudgetUtilizationPercentage > 75 ? "'rgba(255, 193, 7, 0.7)'" :
+                        "'rgba(40, 167, 69, 0.7)'"
+                    )))]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // Hours Chart
+            const hoursCtx = document.getElementById('hoursChart').getContext('2d');
+            new Chart(hoursCtx, {
+                type: 'pie',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.Select(c => $"'{c.ClientName}'")))],
+                    datasets: [{
+                        data: [@string.Join(",", Model.Select(c => c.TotalHours.ToString("N2")))],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'right'
+                        }   
+                    },
+                }
+            });
+
+            //Weekly Chart
+            const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+            const weeklyData = @Html.Raw(Json.Serialize(ViewBag.WeeklyData));
+
+            new Chart(weeklyCtx, {
+                type: 'bar',
+                data: {
+                    labels: weeklyData.weeks,
+                    datasets: weeklyData.data.map((client, index) => ({
+                        label: client.label,
+                        data: client.data,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)'
+                        ][index % 5],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ][index % 5],
+                        borderWidth: 1
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            stacked: true,
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toFixed(1) + ' hours';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            });
+    </script>
+}

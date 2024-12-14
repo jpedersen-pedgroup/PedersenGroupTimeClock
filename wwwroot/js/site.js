@@ -8,78 +8,134 @@ let activeTimer = {
     isPaused: false,
     pausedTime: 0
 };
-// Sound elements
-const sounds = {
-    start: new Audio('/sounds/start.mp3'),
-    stop: new Audio('/sounds/stop.mp3'),
-    pause: new Audio('/sounds/pause.mp3')
-};
-
-function startTimer(ticketId) {
+function startTimer(ticketId, taskInfo = null) {
     if (activeTimer.interval) {
         stopTimer();
     }
 
+    // If no task info, show the modal to get it
+    if (taskInfo === null) {
+        showTaskSelectionModal(ticketId);
+        return;
+    }
+
+    // Actually start the timer with the task info
     //sounds.start.play();
 
+    activeTimer = {
+        ticketId: ticketId,
+        startTime: new Date(),
+        totalSeconds: 0,
+        interval: setInterval(updateTimerDisplay, 1000),
+        isPaused: false,
+        pausedTime: 0,
+        description: taskInfo.taskId ?
+            `Task: ${$('#taskSelect option:selected').text()} - ${taskInfo.notes}` :
+            taskInfo.notes || 'General work'
+    };
+
+    // Update UI
     const button = $(`.btn-timer[data-ticket-id="${ticketId}"]`);
+    button.addClass('active')
+        .find('i')
+        .removeClass('fa-play')
+        .addClass('fa-stop');
 
-    // Fetch checklist items and populate the modal
-    $.get(`/Tickets/GetChecklistItems/${ticketId}`, function (items) {
-        const select = $('#taskSelect');
-        select.empty();
-        select.append('<option value="">General Work</option>');
-
-        items.forEach(item => {
-            if (!item.isCompleted) {
-                select.append(`<option value="${item.id}">${item.description}</option>`);
-            }
-        });
-
-        // Show task selection modal
-        const modal = new bootstrap.Modal(document.getElementById('taskSelectionModal'));
-        modal.show();
-
-        // Handle the start button in the modal
-        $('#startTaskTimer').off('click').on('click', function () {
-            const selectedTaskId = $('#taskSelect').val();
-            const selectedTaskText = $('#taskSelect option:selected').text();
-            const taskNotes = $('#taskNotes').val();
-
-            const taskDescription = selectedTaskId
-                ? `Task: ${selectedTaskText} - ${taskNotes}`
-                : taskNotes || 'General work';
-
-            activeTimer = {
-                ticketId: ticketId,
-                startTime: new Date(),
-                totalSeconds: 0,
-                interval: setInterval(updateTimerDisplay, 1000),
-                isPaused: false,
-                pausedTime: 0,
-                description: taskDescription,
-                taskId: selectedTaskId
-            };
-
-            // Update UI
-            button.addClass('active')
-                .find('i')
-                .removeClass('fa-play')
-                .addClass('fa-stop');
-
-            updateTimerDisplay();
-            updateRunningTotal(ticketId);
-            saveTimerState();
-
-            modal.hide();
-        });
-    });
+    updateTimerDisplay();
+    updateRunningTotal(ticketId);
+    saveTimerState();
 }
-//function confirmStopTimer() {
-//    if (confirm('Are you sure you want to stop the timer? This will save the time entry.')) {
+
+//function startTimer(ticketId) {
+//    if (activeTimer.interval) {
 //        stopTimer();
 //    }
+
+//    // Show task selection modal
+//    const taskModal = document.getElementById('taskSelectionModal');
+//    const startTaskButton = document.getElementById('startTaskTimer');
+
+//    if (taskModal && startTaskButton) {
+//        const modal = new bootstrap.Modal(taskModal, {
+//            keyboard: true,
+//            focus: true,
+//            backdrop: true
+//        });
+
+//        // Get checklist items for the ticket
+//        fetch(`/Tickets/GetChecklistItems/${ticketId}`)
+//            .then(response => response.json())
+//            .then(items => {
+//                const select = document.getElementById('taskSelect');
+//                select.innerHTML = '<option value="">General Work</option>';
+
+//                items.forEach(item => {
+//                    if (!item.isCompleted) {
+//                        const option = document.createElement('option');
+//                        option.value = item.id;
+//                        option.textContent = item.description;
+//                        select.appendChild(option);
+//                    }
+//                });
+
+//                // Remove any existing click handlers
+//                startTaskButton.replaceWith(startTaskButton.cloneNode(true));
+
+//                // Get the fresh reference after replacing
+//                const newStartTaskButton = document.getElementById('startTaskTimer');
+
+//                // Add click handler
+//                newStartTaskButton.addEventListener('click', function () {
+//                    const selectedTask = document.getElementById('taskSelect').value;
+//                    const taskDescription = document.getElementById('taskNotes').value || 'General work';
+
+//                    activeTimer = {
+//                        ticketId: ticketId,
+//                        startTime: new Date(),
+//                        totalSeconds: 0,
+//                        interval: setInterval(updateTimerDisplay, 1000),
+//                        isPaused: false,
+//                        pausedTime: 0,
+//                        description: selectedTask ?
+//                            `Task: ${document.getElementById('taskSelect').options[document.getElementById('taskSelect').selectedIndex].text} - ${taskDescription}` :
+//                            taskDescription
+//                    };
+
+//                    // Update UI
+//                    const button = document.querySelector(`.btn-timer[data-ticket-id="${ticketId}"]`);
+//                    button.classList.add('active');
+//                    button.querySelector('i').classList.replace('fa-play', 'fa-stop');
+
+//                    updateTimerDisplay();
+//                    updateRunningTotal(ticketId);
+//                    saveTimerState();
+
+//                    // Hide the modal
+//                    modal.hide();
+//                });
+
+//                modal.show();
+//            })
+//            .catch(error => console.error('Error loading checklist items:', error));
+//    }
 //}
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('DOM Loaded');
+    console.log('Start Task Button:', document.getElementById('startTaskTimer')); // Debug
+
+    // Add click handler to all timer buttons
+    document.querySelectorAll('.btn-timer').forEach(button => {
+        button.addEventListener('click', function (e) {
+            console.log('Timer button clicked:', this.dataset.ticketId); // Debug
+            const ticketId = this.dataset.ticketId;
+            if (this.classList.contains('active')) {
+                stopTimer();
+            } else {
+                startTimer(ticketId);
+            }
+        });
+    });
+});
 function stopTimer() {
     if (!activeTimer.interval) return;
 
@@ -96,8 +152,8 @@ function stopTimer() {
         data: {
             'timeEntry.Ticket': activeTimer.title,
             'timeEntry.ticketId': activeTimer.ticketId,
-            'timeEntry.Duration': '00:00:00',
-            'timeEntry.Description': `Timer tracked time: ${formatTime(duration)}`,
+            'timeEntry.Duration': `${formatTime(duration)}`,
+            'timeEntry.Description': activeTimer.description,
             duration: duration,
             ticketId: ticketId
         },
@@ -115,24 +171,6 @@ function stopTimer() {
     resetTimerUI();
     localStorage.removeItem('activeTimer');
 }
-//function pauseTimer() {
-//    if (!activeTimer.interval || activeTimer.isPaused) return;
-
-//    sounds.pause.play();
-
-//    clearInterval(activeTimer.interval);
-//    activeTimer.isPaused = true;
-//    activeTimer.pausedTime = calculateTotalDuration();
-
-//    // Update UI - Show play icon when paused
-//    const button = $(`.btn-timer[data-ticket-id="${activeTimer.ticketId}"]`);
-//    button.addClass('active')
-//        .find('i')
-//        .removeClass('fa-stop')
-//        .addClass('fa-play');
-
-//    saveTimerState();
-//}
 function resumeTimer() {
     if (!activeTimer.isPaused) return;
 
@@ -231,22 +269,33 @@ function padNumber(number) {
 
 // Event handlers
 document.addEventListener('DOMContentLoaded', function () {
-    // Initialize timer buttons
+    // Handle timer button clicks
     document.querySelectorAll('.btn-timer').forEach(button => {
         button.addEventListener('click', function (e) {
-            e.preventDefault();
-            const ticketId = this.getAttribute('data-ticket-id');
-
+            console.log('Timer button clicked:', this.dataset.ticketId);
+            const ticketId = this.dataset.ticketId;
             if (this.classList.contains('active')) {
-                if (activeTimer.isPaused) {
-                    resumeTimer();
-                } else {
-                    //confirmStopTimer();
-                    stopTimer();
-                }
+                stopTimer();
             } else {
                 startTimer(ticketId);
             }
+        });
+    });
+
+    // Handle modal start timer button
+    document.getElementById('confirmStartTimer').addEventListener('click', function () {
+        console.log('Confirm start timer clicked');
+        const taskId = document.getElementById('taskSelect').value;
+        const notes = document.getElementById('taskNotes').value;
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('taskSelectionModal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        startTimer(activeTimer.ticketId, {
+            taskId: taskId,
+            notes: notes
         });
     });
 
@@ -342,6 +391,29 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     });
+
+    const taskModal = document.getElementById('taskSelectionModal');
+    const startTaskButton = document.getElementById('startTaskTimer');
+
+    if (taskModal && startTaskButton) {
+        startTaskButton.addEventListener('click', function () {
+            const taskId = document.getElementById('taskSelect').value;
+            const notes = document.getElementById('taskNotes').value;
+
+            const bsModal = bootstrap.Modal.getInstance(taskModal);
+            if (bsModal) {
+                bsModal.hide();
+            }
+
+            // Start the timer with the task info
+            if (activeTimer.ticketId) {
+                startTimer(activeTimer.ticketId, {
+                    taskId: taskId,
+                    notes: notes
+                });
+            }
+        });
+    }
 });
 
 function updateTotals(totalTime, budgetRemaining) {
@@ -494,11 +566,10 @@ let selectedTask = null;
 let selectedTaskNotes = '';
 
 function showTaskSelectionModal(ticketId) {
-    // Fetch checklist items for the ticket
+    // Get checklist items for the ticket
     $.get(`/Tickets/GetChecklistItems/${ticketId}`, function (items) {
         const select = $('#taskSelect');
-        select.empty();
-        select.append('<option value="">General Work</option>');
+        select.empty().append('<option value="">General Work</option>');
 
         items.forEach(item => {
             if (!item.isCompleted) {
@@ -506,7 +577,24 @@ function showTaskSelectionModal(ticketId) {
             }
         });
 
-        $('#taskSelectionModal').modal('show');
+        // Reset notes field
+        $('#taskNotes').val('');
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('taskSelectionModal'));
+        modal.show();
+
+        // Set up the start button handler
+        $('#startTaskTimer').off('click').on('click', function () {
+            const taskId = $('#taskSelect').val();
+            const notes = $('#taskNotes').val();
+            modal.hide();
+
+            startTimer(ticketId, {
+                taskId: taskId,
+                notes: notes
+            });
+        });
     });
 }
 

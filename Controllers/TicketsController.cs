@@ -41,6 +41,20 @@ namespace PedersenGroupTimeClock.Controllers
                 .ToDictionaryAsync(e => e.Id, e => e.FullName);
             ViewBag.EmployeeNames = employeeDict;
 
+            ViewBag.Clients = await _context.Clients
+                .Where(c => c.IsActive)
+                .OrderBy(c => c.Name)
+                .Select(c => new SelectListItem
+                {
+                    Value = c.Id.ToString(),
+                    Text = c.Name
+                })
+                .ToListAsync();
+
+            var clientDict = await _context.Clients
+                .ToDictionaryAsync(c => c.Id, c => c.Name);
+                ViewBag.ClientNames = clientDict;
+
             return View(tickets);
         }
 
@@ -63,6 +77,7 @@ namespace PedersenGroupTimeClock.Controllers
         // GET: Tickets/Create
         public async Task<IActionResult> CreateAsync()
         {
+
             await PrepareSelectLists();
             return View();
         }
@@ -88,12 +103,14 @@ namespace PedersenGroupTimeClock.Controllers
         // POST: Tickets/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,Status,Priority,AssignedTo,RateId,BudgetHours,CreatedAt")] Ticket ticket, List<string> ChecklistItems)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,ClientId,Title,Description,Status,Priority,AssignedTo,RateId,BudgetHours,CreatedAt")] Ticket ticket, List<string> ChecklistItems)
         {
             if (id != ticket.Id)
                 return NotFound();
 
             ModelState.Remove("Rate");
+            ModelState.Remove("Employees");
+            ModelState.Remove("Client");
 
             if (ModelState.IsValid)
             {
@@ -315,6 +332,7 @@ namespace PedersenGroupTimeClock.Controllers
                 .Select(r => new SelectListItem
                 {
                     Value = r.Id.ToString(),
+                    //Text = r.Name
                     Text = $"{r.Name} (${r.HourlyRate}/hour)"
                 })
                 .ToListAsync();
@@ -326,7 +344,17 @@ namespace PedersenGroupTimeClock.Controllers
                 .Select(e => new SelectListItem
                 {
                     Value = e.Id.ToString(),
-                    Text = e.FullName
+                    Text = e.FirstName
+                })
+                .ToListAsync();
+
+            ViewBag.Clients = await _context.Clients
+                .Where(c => c.IsActive)
+                .OrderBy(c => c.Name)
+                .Select(c => new SelectListItem
+                {
+                    Value = c.Id.ToString(),
+                    Text = c.Name
                 })
                 .ToListAsync();
         }
@@ -356,6 +384,7 @@ namespace PedersenGroupTimeClock.Controllers
                     Status = model.Status,
                     Priority = model.Priority,
                     AssignedTo = model.AssignedTo,
+                    ClientId = model.ClientId,
                     RateId = model.RateId,
                     BudgetHours = model.BudgetHours,
                     CreatedAt = DateTime.UtcNow

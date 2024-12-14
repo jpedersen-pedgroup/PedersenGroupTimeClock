@@ -36,7 +36,13 @@ namespace PedersenGroupTimeClock.Models
         public virtual ICollection<TimeEntry> TimeEntries { get; set; } = new List<TimeEntry>();
         public virtual ICollection<TicketChecklistItem> ChecklistItems { get; set; } = new List<TicketChecklistItem>();
         public virtual Rate Rate { get; set; }
+
+        [ForeignKey("AssignedTo")]
         public virtual Employee Employees { get; set; }
+
+        [Required]
+        public int ClientId { get; set; }
+        public virtual Client Client { get; set; }
 
         // Computed properties
         [NotMapped]

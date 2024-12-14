@@ -7,14 +7,14 @@ namespace PedersenGroupTimeClock.Models
     {
         public CreateTicketViewModel()
         {
-            ChecklistItems = new List<string>(); 
+            ChecklistItems = new List<string>();
         }
 
         [Required]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         [Required]
-        public string Description { get; set; }
+        public string Description { get; set; } = string.Empty;
 
         public TicketStatus Status { get; set; }
 
@@ -23,10 +23,13 @@ namespace PedersenGroupTimeClock.Models
         [Required]
         public int AssignedTo { get; set; }
 
+        [Required]
+        public int ClientId { get; set; }  // Add this line
+
         public int? RateId { get; set; }
 
         public decimal BudgetHours { get; set; }
 
-        public List<string> ChecklistItems { get; set; }
+        public List<string> ChecklistItems { get; private set; }
     }
 }

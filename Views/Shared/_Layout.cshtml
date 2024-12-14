@@ -17,7 +17,9 @@
         <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                    <img src="~/images/pedersengroup.jpg" alt="Logo" height="30" class="d-inline-block align-text-top">
+                    <img src="~/images/pedersengroup v2.jpg" alt="Company Logo" class="img-fluid" style="max-width:200px;" />
+
+                    @* <img src="~/images/pedersengroup.jpg" alt="Logo" height="30" class="d-inline-block align-text-top"> *@
                 </a>
                 <button class="navbar-toggler" type="button"
                         data-bs-toggle="collapse"
@@ -40,6 +42,12 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-controller="Rates" asp-action="Index">Rates</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Clients" asp-action="Index">Clients</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Reports" asp-action="FiscalYear">Reporting</a>
                         </li>
                     </ul>
                     @* <partial name="_LoginPartial" /> *@
@@ -65,7 +73,9 @@
     @* <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script> *@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

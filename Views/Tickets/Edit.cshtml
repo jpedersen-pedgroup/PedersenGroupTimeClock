@@ -22,6 +22,13 @@
                 <div class="row">
                     <div class="col-md-8">
                         <div class="mb-3">
+                            <label asp-for="ClientId" class="form-label">Client</label>
+                            <select asp-for="ClientId" class="form-select" asp-items="ViewBag.Clients">
+                                <option value="">-- Select Client --</option>
+                            </select>
+                            <span asp-validation-for="ClientId" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
                             <label asp-for="Title" class="form-label">Title</label>
                             <input asp-for="Title" class="form-control" />
                             <span asp-validation-for="Title" class="text-danger"></span>
@@ -80,8 +87,7 @@
                         </div>
                         <div class="mb-3">
                             <label asp-for="RateId" class="form-label">Hourly Rate</label>
-                            <select asp-for="RateId" class="form-select"
-                                    asp-items="@(new SelectList(ViewBag.Rates, "Id", "Name"))">
+                            <select asp-for="RateId" class="form-select" asp-items="ViewBag.Rates">
                                 <option value="">Select a rate...</option>
                             </select>
                             <span asp-validation-for="RateId" class="text-danger"></span>

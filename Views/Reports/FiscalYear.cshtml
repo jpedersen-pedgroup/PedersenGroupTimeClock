@@ -1,0 +1,491 @@
+﻿    @model FiscalYearReportViewModel
+
+@{
+    ViewData["Title"] = "Fiscal Year Report";
+}
+
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <div>
+            <h2 class="fw-bold mb-0">Fiscal Year Report</h2>
+            <p class="text-muted mb-0">@Model.DateRange</p>
+        </div>
+        <div class="d-flex gap-3 align-items-center">
+            <form asp-action="FiscalYear" method="get" class="d-flex gap-2 align-items-center">
+                <label class="form-label mb-0">Fiscal Year:</label>
+                <select name="fiscalYear" class="form-select" onchange="this.form.submit()" style="width: auto;">
+                    @foreach (var item in Model.AvailableFiscalYears)
+                    {
+                        <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                    }
+                </select>
+            </form>
+            <button class="btn btn-outline-primary" onclick="window.exportToPdf()">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </button>
+            <button class="btn btn-outline-success" onclick="window.exportToExcel()">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Clients</h6>
+                    <h2 class="card-title mb-0">@Model.ClientStats.Count</h2>
+                    <small class="text-@(Model.YoyComparison.ClientGrowth >= 0 ? "success" : "danger")">
+                        <i class="fas fa-@(Model.YoyComparison.ClientGrowth >= 0 ? "arrow-up" : "arrow-down")"></i>
+                        @Math.Abs(Model.YoyComparison.ClientGrowth)% from last year
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Hours</h6>
+                    <h2 class="card-title mb-0">@Model.ClientStats.Sum(c => c.TotalHours).ToString("N1")h</h2>
+                    <small class="text-@(Model.YoyComparison.HoursGrowth >= 0 ? "success" : "danger")">
+                        <i class="fas fa-@(Model.YoyComparison.HoursGrowth >= 0 ? "arrow-up" : "arrow-down")"></i>
+                        @Math.Abs(Model.YoyComparison.HoursGrowth)% from last year
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Revenue</h6>
+                    <h2 class="card-title mb-0">@Model.ClientStats.Sum(c => c.TotalCost).ToString("C0")</h2>
+                    <small class="text-@(Model.YoyComparison.RevenueGrowth >= 0 ? "success" : "danger")">
+                        <i class="fas fa-@(Model.YoyComparison.RevenueGrowth >= 0 ? "arrow-up" : "arrow-down")"></i>
+                        @Math.Abs(Model.YoyComparison.RevenueGrowth)% from last year
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Active Tickets</h6>
+                    <h2 class="card-title mb-0">@Model.ClientStats.Sum(c => c.ActiveTickets)</h2>
+                    <small class="text-muted">Across all clients</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <!-- Weekly Hours Chart -->
+        <div class="col-7">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Weekly Hours by Client</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 400px;">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quarterly Breakdown -->
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Quarterly Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 400px;">
+                    <canvas id="quarterlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- YoY Comparison -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Year over Year Comparison</h5>
+                </div>
+                <div class="card-body">
+                        <div style="height: 400px;">
+                    <canvas id="yoyChart"></canvas>
+                </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Details Table -->
+    <div class="card">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">Client Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th class="text-end">Active Tickets</th>
+                            <th class="text-end">Hours</th>
+                            <th class="text-end">Budget Hours</th>
+                            <th class="text-end">Revenue</th>
+                            <th class="text-end">Budget</th>
+                            <th>YoY Growth</th>
+                            <th>Budget Usage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var client in Model.ClientStats)
+                        {
+                            var yoyComparison = Model.YoyComparison.ClientComparisons
+                            .FirstOrDefault(c => c.ClientName == client.ClientName);
+
+                            <tr>
+                                <td>@client.ClientName</td>
+                                <td class="text-end">@client.ActiveTickets</td>
+                                <td class="text-end">@client.TotalHours.ToString("N1")h</td>
+                                <td class="text-end">@client.TotalBudgetedHours.ToString("N1")h</td>
+                                <td class="text-end">@client.TotalCost.ToString("C0")</td>
+                                <td class="text-end">@client.TotalBudget.ToString("C0")</td>
+                                <td>
+                                    <span class="text-@(yoyComparison?.GrowthPercentage >= 0 ? "success" : "danger")">
+                                        @(yoyComparison?.GrowthPercentage.ToString("N1"))%
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        @{
+                                            var percentage = client.BudgetUtilizationPercentage;
+                                            var progressClass = percentage switch
+                                            {
+                                                > 100 => "bg-danger",
+                                                > 75 => "bg-warning",
+                                                _ => "bg-success"
+                                            };
+                                        }
+                                        <div class="progress-bar @progressClass"
+                                             role="progressbar"
+                                             style="width: @Math.Min(percentage, 100)%">
+                                            @percentage.ToString("N0")%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+         window.jspdf = window.jspdf || {};
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            window.exportToPdf = exportToPdf;
+            window.exportToExcel = exportToExcel;
+
+            // Prepare the data
+            const clientStats = @Html.Raw(Json.Serialize(Model.ClientStats));
+            const quarterlyStats = @Html.Raw(Json.Serialize(Model.QuarterlyStats));
+            const yoyComparison = @Html.Raw(Json.Serialize(Model.YoyComparison));
+
+            // Color schemes
+            const colors = [
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 159, 64, 0.7)'
+            ];
+
+        // Weekly Hours Stacked Bar Chart
+                   const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+                   new Chart(weeklyCtx, {
+                       type: 'bar',
+                       data: {
+                           labels: clientStats[0].weeklyData.map(w => w.weekLabel),
+                           datasets: [
+                               ...clientStats.map((client, index) => ({
+                                   label: client.clientName,
+                                   data: client.weeklyData.map(w => w.hours),
+                                   backgroundColor: colors[index % colors.length],
+                                   borderColor: colors[index % colors.length].replace('0.7', '1'),
+                                   borderWidth: 1,
+                                   stack: 'stack0'
+                               })),
+                               {
+                                   label: 'Target',
+                                   data: new Array(clientStats[0].weeklyData.length).fill(45),
+                                   type: 'line',
+                                   borderColor: 'rgba(255, 0, 0, 0.7)',
+                                   borderWidth: 2,
+                                   borderDash: [5, 5],
+                                   fill: false,
+                                   stack: 'stack1'
+                               }
+                           ]
+                       },
+                       options: {
+                           responsive: true,
+                           maintainAspectRatio: false,
+                           scales: {
+                               x: {
+                                   stacked: true,
+                               },
+                               y: {
+                                   stacked: true,
+                                   beginAtZero: true,
+                                   max: 60,
+                                   title: {
+                                       display: true,
+                                       text: 'Hours'
+                                   }
+                               }
+                           },
+                           plugins: {
+                               title: {
+                                   display: true,
+                                   text: 'Weekly Hours Distribution'
+                               },
+                               legend: {
+                                   position: 'right'
+                               },
+                               tooltip: {
+                                   callbacks: {
+                                       label: function(context) {
+                                           return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} hours`;
+                                       }
+                                   }
+                               }
+                           }
+                       },
+                       plugins: [{
+                           afterDraw: function(chart) {
+                               const ctx = chart.ctx;
+                               const meta = chart.getDatasetMeta(0); // Get the first dataset
+                               ctx.save();
+                               ctx.textAlign = 'center';
+                               ctx.textBaseline = 'bottom';
+                               ctx.font = '12px Arial';
+                               ctx.fillStyle = '#666';
+
+                               // Calculate and draw total for each week
+                               chart.data.labels.forEach((label, i) => {
+                                   const total = clientStats.reduce((sum, client) =>
+                                       sum + client.weeklyData[i].hours, 0);
+                                   const x = meta.data[i].x;
+                                   const y = chart.scales.y.getPixelForValue(total);
+                                   ctx.fillText(`${total.toFixed(1)}h`, x, y - 5);
+                               });
+                               ctx.restore();
+                           }
+                       }]
+                   });
+
+            // Quarterly Performance Chart
+            const quarterlyCtx = document.getElementById('quarterlyChart').getContext('2d');
+            new Chart(quarterlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: quarterlyStats.map(q => q.quarterLabel),
+                    datasets: [
+                        {
+                            label: 'Total Hours',
+                            data: quarterlyStats.map(q => q.totalHours),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Active Clients',
+                            data: quarterlyStats.map(q => q.activeClients),
+                            type: 'line',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Active Clients'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Quarterly Performance'
+                        }
+                    }
+                }
+            });
+
+            // Year over Year Comparison Chart
+            const yoyCtx = document.getElementById('yoyChart').getContext('2d');
+            new Chart(yoyCtx, {
+                type: 'bar',
+                data: {
+                    labels: yoyComparison.clientComparisons.map(c => c.clientName),
+                    datasets: [
+                        {
+                            label: 'Last Year',
+                            data: yoyComparison.clientComparisons.map(c => c.lastYearHours),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'This Year',
+                            data: yoyComparison.clientComparisons.map(c => c.thisYearHours),
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Year over Year Comparison'
+                        }
+                    }
+                }
+            });
+        });
+
+        // Export Functions
+        function exportToPdf() {
+            try {
+                // Explicitly check for jspdf and jsPDF
+                if (typeof window.jspdf === 'undefined' && typeof jspdf === 'undefined') {
+                    throw new Error('jsPDF library not loaded');
+                }
+
+                // Try multiple ways of accessing jsPDF
+                const { jsPDF } = window.jspdf || jspdf;
+
+                if (typeof jsPDF !== 'function') {
+                    throw new Error('jsPDF constructor is not a function');
+                }
+
+                const doc = new jsPDF();
+
+                // Add title
+                doc.setFontSize(20);
+                doc.text('Fiscal Year Report', 20, 20);
+                doc.setFontSize(12);
+                doc.text(@Json.Serialize(Model.DateRange), 20, 30);
+
+                // Add summary data
+                doc.text('Summary', 20, 50);
+                doc.text(`Total Clients: ${@Model.ClientStats.Count}`, 30, 60);
+                doc.text(`Total Hours: ${@Model.ClientStats.Sum(c => c.TotalHours).ToString("N1")}`, 30, 70);
+                doc.text(`Total Revenue: ${@Model.ClientStats.Sum(c => c.TotalCost).ToString("C0")}`, 30, 80);
+
+                // Add charts as images with error handling
+                const chartIds = ['weeklyChart', 'quarterlyChart', 'yoyChart'];
+                let yPosition = 100;
+
+                chartIds.forEach(chartId => {
+                    try {
+                        const canvas = document.getElementById(chartId);
+                        if (!canvas) {
+                            console.warn(`Canvas with id ${chartId} not found`);
+                            return;
+                        }
+
+                        const imgData = canvas.toDataURL('image/png');
+                        doc.addImage(imgData, 'PNG', 20, yPosition, 170, 80);
+                        yPosition += 90;
+
+                        if (yPosition > 250) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+                    } catch (chartError) {
+                        console.error(`Error processing chart ${chartId}:`, chartError);
+                    }
+                });
+
+                doc.save('fiscal-year-report.pdf');
+            } catch (error) {
+                console.error('PDF Export Error:', error);
+                alert('Failed to export PDF. Please check the console for details.');
+            }
+        }
+
+        function exportToExcel() {
+            const data = @Html.Raw(Json.Serialize(Model.ClientStats));
+
+            const ws = XLSX.utils.json_to_sheet(data.map(client => ({
+                'Client Name': client.clientName,
+                'Active Tickets': client.activeTickets,
+                'Total Hours': client.totalHours,
+                'Budgeted Hours': client.totalBudgetedHours,
+                'Total Cost': client.totalCost,
+                'Budget': client.totalBudget,
+                'Budget Utilization': `${client.budgetUtilizationPercentage.toFixed(1)}%`
+            })));
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Client Data');
+
+            // Add quarterly data
+            const quarterlyData = @Html.Raw(Json.Serialize(Model.QuarterlyStats));
+            const wsQuarterly = XLSX.utils.json_to_sheet(quarterlyData);
+            XLSX.utils.book_append_sheet(wb, wsQuarterly, 'Quarterly Data');
+
+            XLSX.writeFile(wb, 'fiscal-year-report.xlsx');
+        }
+    </script>
+}
