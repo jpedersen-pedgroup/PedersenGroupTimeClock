@@ -413,5 +413,18 @@ namespace PedersenGroupTimeClock.Controllers
             PrepareSelectLists();
             return View(model);
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetClientName(int ticketId)
+        {
+            var ticket = await _context.Tickets
+                .Include(t => t.Client)
+                .FirstOrDefaultAsync(t => t.Id == ticketId);
+
+            if (ticket == null || ticket.Client == null)
+                return NotFound();
+
+            return Json(new { clientName = ticket.Client.Name });
+        }
     }
 }

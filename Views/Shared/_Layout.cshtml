@@ -15,11 +15,9 @@
 <body>
     <header>
         <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom box-shadow">
-            <div class="container-fluid">
+            <div class="container-fluid d-flex align-items-center">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
                     <img src="~/images/pedersengroup v2.jpg" alt="Company Logo" class="img-fluid" style="max-width:200px;" />
-
-                    @* <img src="~/images/pedersengroup.jpg" alt="Logo" height="30" class="d-inline-block align-text-top"> *@
                 </a>
                 <button class="navbar-toggler" type="button"
                         data-bs-toggle="collapse"
@@ -35,9 +33,6 @@
                             <a class="nav-link" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-controller="Tickets" asp-action="Index">Tickets</a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link" asp-controller="Employees" asp-action="Index">Employees</a>
                         </li>
                         <li class="nav-item">
@@ -50,11 +45,16 @@
                             <a class="nav-link" asp-controller="Reports" asp-action="FiscalYear">Reporting</a>
                         </li>
                     </ul>
-                    @* <partial name="_LoginPartial" /> *@
+                </div>
+                <!-- Timer card container -->
+                <div id="active-timer-card" class="ms-auto" style="max-width: 300px;">
+                    <!-- Timer card will be dynamically inserted here -->
                 </div>
             </div>
         </nav>
     </header>
+
+
     <div class="container-fluid px-2 px-sm-3 px-md-4">
         <main role="main" class="pb-3">
             @RenderBody()
@@ -69,8 +69,7 @@
     <form id="antiForgeryForm">
         @Html.AntiForgeryToken()
     </form>
-    @* <script src="~/lib/jquery/dist/jquery.min.js"></script> *@
-    @* <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script> *@
+
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     

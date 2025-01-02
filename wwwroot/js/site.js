@@ -6,136 +6,85 @@ let activeTimer = {
     interval: null,
     totalSeconds: 0,
     isPaused: false,
-    pausedTime: 0
+    pausedTime: 0,
+    clientName: null
 };
+
 function startTimer(ticketId, taskInfo = null) {
+
+    // Prevent starting a new timer for the same ticket
+    if (activeTimer.interval && activeTimer.ticketId === ticketId) {
+        console.warn('Timer already active for this ticket:', ticketId);
+        showNotification('A timer is already running for this ticket.', 'warning');
+        return; // Exit early
+    }
+
     if (activeTimer.interval) {
         stopTimer();
     }
 
     // If no task info, show the modal to get it
     if (taskInfo === null) {
+        activeTimer.ticketId = ticketId; // Retain the ticketId in activeTimer
         showTaskSelectionModal(ticketId);
         return;
     }
 
-    // Actually start the timer with the task info
-    //sounds.start.play();
+    console.log('ticketId used in fetch call:', ticketId);
 
-    activeTimer = {
-        ticketId: ticketId,
-        startTime: new Date(),
-        totalSeconds: 0,
-        interval: setInterval(updateTimerDisplay, 1000),
-        isPaused: false,
-        pausedTime: 0,
-        description: taskInfo.taskId ?
-            `Task: ${$('#taskSelect option:selected').text()} - ${taskInfo.notes}` :
-            taskInfo.notes || 'General work'
-    };
+    // Fetch client name from the backend (replace with your endpoint)
+    fetch(`/Tickets/GetClientName/?ticketId=${ticketId}`)
+        .then(response => response.json())
+        .then(data => {
+            const clientName = data.clientName;
 
-    // Update UI
-    const button = $(`.btn-timer[data-ticket-id="${ticketId}"]`);
-    button.addClass('active')
-        .find('i')
-        .removeClass('fa-play')
-        .addClass('fa-stop');
+            // Initialize the timer
+            activeTimer = {
+                ticketId: activeTimer.ticketId,
+                startTime: new Date(),
+                totalSeconds: 0,
+                interval: setInterval(updateTimerDisplay, 1000),
+                isPaused: false,
+                pausedTime: 0,
+                description: taskInfo.taskId
+                    ? `Task: ${$('#taskSelect option:selected').text()} - ${taskInfo.notes}`
+                    : taskInfo.notes || 'General work',
+                clientName: clientName // Save client name
+            };
 
-    updateTimerDisplay();
-    updateRunningTotal(ticketId);
-    saveTimerState();
-}
+            console.log('Timer started:', activeTimer);
 
-//function startTimer(ticketId) {
-//    if (activeTimer.interval) {
-//        stopTimer();
-//    }
+            // Update UI
+            const button = $(`.btn-timer[data-ticket-id="${ticketId}"]`);
+            button.addClass('active')
+                .find('i')
+                .removeClass('fa-play')
+                .addClass('fa-stop');
 
-//    // Show task selection modal
-//    const taskModal = document.getElementById('taskSelectionModal');
-//    const startTaskButton = document.getElementById('startTaskTimer');
-
-//    if (taskModal && startTaskButton) {
-//        const modal = new bootstrap.Modal(taskModal, {
-//            keyboard: true,
-//            focus: true,
-//            backdrop: true
-//        });
-
-//        // Get checklist items for the ticket
-//        fetch(`/Tickets/GetChecklistItems/${ticketId}`)
-//            .then(response => response.json())
-//            .then(items => {
-//                const select = document.getElementById('taskSelect');
-//                select.innerHTML = '<option value="">General Work</option>';
-
-//                items.forEach(item => {
-//                    if (!item.isCompleted) {
-//                        const option = document.createElement('option');
-//                        option.value = item.id;
-//                        option.textContent = item.description;
-//                        select.appendChild(option);
-//                    }
-//                });
-
-//                // Remove any existing click handlers
-//                startTaskButton.replaceWith(startTaskButton.cloneNode(true));
-
-//                // Get the fresh reference after replacing
-//                const newStartTaskButton = document.getElementById('startTaskTimer');
-
-//                // Add click handler
-//                newStartTaskButton.addEventListener('click', function () {
-//                    const selectedTask = document.getElementById('taskSelect').value;
-//                    const taskDescription = document.getElementById('taskNotes').value || 'General work';
-
-//                    activeTimer = {
-//                        ticketId: ticketId,
-//                        startTime: new Date(),
-//                        totalSeconds: 0,
-//                        interval: setInterval(updateTimerDisplay, 1000),
-//                        isPaused: false,
-//                        pausedTime: 0,
-//                        description: selectedTask ?
-//                            `Task: ${document.getElementById('taskSelect').options[document.getElementById('taskSelect').selectedIndex].text} - ${taskDescription}` :
-//                            taskDescription
-//                    };
-
-//                    // Update UI
-//                    const button = document.querySelector(`.btn-timer[data-ticket-id="${ticketId}"]`);
-//                    button.classList.add('active');
-//                    button.querySelector('i').classList.replace('fa-play', 'fa-stop');
-
-//                    updateTimerDisplay();
-//                    updateRunningTotal(ticketId);
-//                    saveTimerState();
-
-//                    // Hide the modal
-//                    modal.hide();
-//                });
-
-//                modal.show();
-//            })
-//            .catch(error => console.error('Error loading checklist items:', error));
-//    }
-//}
-document.addEventListener('DOMContentLoaded', function () {
-    console.log('DOM Loaded');
-    console.log('Start Task Button:', document.getElementById('startTaskTimer')); // Debug
-
-    // Add click handler to all timer buttons
-    document.querySelectorAll('.btn-timer').forEach(button => {
-        button.addEventListener('click', function (e) {
-            console.log('Timer button clicked:', this.dataset.ticketId); // Debug
-            const ticketId = this.dataset.ticketId;
-            if (this.classList.contains('active')) {
-                stopTimer();
-            } else {
-                startTimer(ticketId);
-            }
+            saveTimerState();
+            updateTimerDisplay();
+            updateRunningTotal(ticketId);
+            renderActiveTimerCard(); // Render updated card
+        })
+        .catch(error => {
+            console.error('Error fetching client name:', error);
         });
-    });
-});
+
+}
+function saveTimerState() {
+    if (activeTimer.ticketId) {
+        sessionStorage.setItem('activeTimer', JSON.stringify({
+            ticketId: activeTimer.ticketId,
+            startTime: activeTimer.startTime.toISOString(),
+            isPaused: activeTimer.isPaused,
+            pausedTime: activeTimer.pausedTime,
+            description: activeTimer.description,
+            clientName: activeTimer.clientName
+        }));
+    } else {
+        sessionStorage.removeItem('activeTimer'); // Clear storage if no active timer
+    }
+}
 function stopTimer() {
     if (!activeTimer.interval) return;
 
@@ -165,29 +114,19 @@ function stopTimer() {
                 updateTotalTime(activeTimer.ticketId, response.totalTime);
                 showNotification('Time entry saved successfully', 'success');
             }
+        },
+        error: function (response) {
+
+            if (response) { }
+
         }
     });
 
+    saveTimerState()
     resetTimerUI();
     localStorage.removeItem('activeTimer');
-}
-function resumeTimer() {
-    if (!activeTimer.isPaused) return;
-
-    sounds.start.play();
-
-    activeTimer.startTime = new Date();
-    activeTimer.isPaused = false;
-    activeTimer.interval = setInterval(updateTimerDisplay, 1000);
-
-    // Update UI - Show stop icon when resumed
-    const button = $(`.btn-timer[data-ticket-id="${activeTimer.ticketId}"]`);
-    button.addClass('active')
-        .find('i')
-        .removeClass('fa-play')
-        .addClass('fa-stop');
-
-    saveTimerState();
+    sessionStorage.removeItem('activeTimer')
+    renderActiveTimerCard(); // Remove the card
 }
 function resetTimerUI() {
     if (!activeTimer.ticketId) return;
@@ -210,15 +149,25 @@ function resetTimerUI() {
         pausedTime: 0
     };
 }
-function calculateTotalDuration() {
-    if (!activeTimer.startTime) return 0;
 
-    const baseSeconds = activeTimer.isPaused ?
-        activeTimer.pausedTime :
-        Math.floor((new Date() - activeTimer.startTime) / 1000);
+function calculateTotalDuration(timer = activeTimer) {
+    if (!timer.startTime) return 0;
+
+    const baseSeconds = timer.isPaused
+        ? timer.pausedTime
+        : Math.floor((new Date() - new Date(timer.startTime)) / 1000);
 
     return baseSeconds;
 }
+//function calculateTotalDuration() {
+//    if (!activeTimer.startTime) return 0;
+
+//    const baseSeconds = activeTimer.isPaused ?
+//        activeTimer.pausedTime :
+//        Math.floor((new Date() - activeTimer.startTime) / 1000);
+
+//    return baseSeconds;
+//}
 function updateRunningTotal(ticketId) {
     const totalElement = $(`#total-time-${ticketId}`);
     if (!totalElement.length) return;
@@ -244,17 +193,6 @@ function updateTimerDisplay() {
     updateRunningTotal(activeTimer.ticketId);
 }
 
-// Add to your saveTimerState function
-function saveTimerState() {
-    if (activeTimer.ticketId) {
-        localStorage.setItem('activeTimer', JSON.stringify({
-            ticketId: activeTimer.ticketId,
-            startTime: activeTimer.startTime.toISOString(),
-            isPaused: activeTimer.isPaused,
-            pausedTime: activeTimer.pausedTime
-        }));
-    }
-}
 function formatTime(totalSeconds) {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -266,83 +204,6 @@ function formatTime(totalSeconds) {
 function padNumber(number) {
     return number.toString().padStart(2, '0');
 }
-
-// Event handlers
-document.addEventListener('DOMContentLoaded', function () {
-    // Handle timer button clicks
-    document.querySelectorAll('.btn-timer').forEach(button => {
-        button.addEventListener('click', function (e) {
-            console.log('Timer button clicked:', this.dataset.ticketId);
-            const ticketId = this.dataset.ticketId;
-            if (this.classList.contains('active')) {
-                stopTimer();
-            } else {
-                startTimer(ticketId);
-            }
-        });
-    });
-
-    // Handle modal start timer button
-    document.getElementById('confirmStartTimer').addEventListener('click', function () {
-        console.log('Confirm start timer clicked');
-        const taskId = document.getElementById('taskSelect').value;
-        const notes = document.getElementById('taskNotes').value;
-
-        const modal = bootstrap.Modal.getInstance(document.getElementById('taskSelectionModal'));
-        if (modal) {
-            modal.hide();
-        }
-
-        startTimer(activeTimer.ticketId, {
-            taskId: taskId,
-            notes: notes
-        });
-    });
-
-    // Add pause button functionality
-    document.querySelectorAll('.btn-pause').forEach(button => {
-        button.addEventListener('click', function (e) {
-            e.preventDefault();
-            if (activeTimer.interval && !activeTimer.isPaused) {
-                pauseTimer();
-            } else {
-                resumeTimer();
-            }
-        });
-    });
-
-    // Handle page unload
-    window.addEventListener('beforeunload', function () {
-        if (activeTimer.interval) {
-            stopTimer();
-        }
-    });
-
-    $('#startTaskTimer').click(function () {
-        selectedTask = $('#taskSelect').val();
-        selectedTaskNotes = $('#taskNotes').val();
-        $('#taskSelectionModal').modal('hide');
-
-        // Start the timer with the selected task
-        startTimer(activeTimer.ticketId, {
-            taskId: selectedTask,
-            notes: selectedTaskNotes
-        });
-    });
-});
-
-// Save timer state when changed
-function saveTimerState() {
-    if (activeTimer.ticketId) {
-        localStorage.setItem('activeTimer', JSON.stringify({
-            ticketId: activeTimer.ticketId,
-            startTime: activeTimer.startTime
-        }));
-    } else {
-        localStorage.removeItem('activeTimer');
-    }
-}
-
 
 // Time Entry Edit/Delete functionality
 document.addEventListener('DOMContentLoaded', function () {
@@ -413,6 +274,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
         });
+    }
+
+    const savedTimer = JSON.parse(sessionStorage.getItem('activeTimer'));
+    if (savedTimer) {
+        // Restore active timer
+        activeTimer = {
+            ticketId: savedTimer.ticketId,
+            startTime: new Date(savedTimer.startTime),
+            totalSeconds: 0,
+            interval: setInterval(updateTimerDisplay, 1000),
+            isPaused: savedTimer.isPaused,
+            pausedTime: savedTimer.pausedTime,
+            description: savedTimer.description
+        };
+
+        // Render the active timer card
+        renderActiveTimerCard();
     }
 });
 
@@ -598,3 +476,57 @@ function showTaskSelectionModal(ticketId) {
     });
 }
 
+function renderActiveTimerCard() {
+    const activeTimerData = JSON.parse(sessionStorage.getItem('activeTimer'));
+    const container = document.getElementById('active-timer-card');
+
+    // Clear the container content only once during initialization
+    container.innerHTML = ''; 
+
+    if (activeTimerData) {
+        const elapsedSeconds = calculateTotalDuration(activeTimerData);
+        const formattedTime = formatTime(elapsedSeconds);
+
+        container.innerHTML = `
+            <div class="card text-white bg-secondary mb-3" style="max-width:400px; max-height:150px">
+                <div class="card-body p-0 ps-1">
+                    <h5 class="card-title">${activeTimerData.clientName}</h5>
+                    <div class="row">
+                        <div class="col-9 pe-0">
+                            <p class="card-text"><small>
+                                ${activeTimerData.description} <br>
+                                Time Elapsed: <span id="active-timer-elapsed">${formattedTime}</span>
+                            </small></p>
+                        </div>
+                        <div class="col-3 ps-0">
+                            <button id="stop-timer-btn" class="btn btn-danger">Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Stop Timer Button
+        document.getElementById('stop-timer-btn').addEventListener('click', () => {
+            stopTimer();
+            renderActiveTimerCard(); // Re-render the card
+        });
+
+        // Prevent reinitializing interval if already active
+        if (!activeTimerInterval) {
+            activeTimerInterval = setInterval(() => {
+                if (!activeTimer || !activeTimer.startTime) {
+                    clearInterval(activeTimerInterval);
+                    activeTimerInterval = null; // Reset interval ID
+                    return;
+                }
+
+                const updatedSeconds = calculateTotalDuration(activeTimer); // Use live activeTimer state
+                const elapsedElement = document.getElementById('active-timer-elapsed');
+                if (elapsedElement) {
+                    elapsedElement.textContent = formatTime(updatedSeconds);
+                }
+            }, 1000);
+        }
+    }
+}

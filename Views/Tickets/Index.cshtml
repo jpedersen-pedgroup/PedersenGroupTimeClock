@@ -412,348 +412,70 @@
         });
 
     </script>
+    <script>
+                // Event handlers
+        document.addEventListener('DOMContentLoaded', function () {
+            // Handle timer button clicks
+            document.querySelectorAll('.btn-timer').forEach(button => {
+                button.addEventListener('click', function (e) {
+                    console.log('Timer button clicked:', this.dataset.ticketId);
+                    const ticketId = this.dataset.ticketId;
+                    if (this.classList.contains('active')) {
+                        stopTimer();
+                    } else {
+                        startTimer(ticketId);
+                    }
+                });
+            });
+
+            // Handle modal start timer button
+            document.getElementById('confirmStartTimer').addEventListener('click', function () {
+                console.log('Confirm start timer clicked');
+                const taskId = document.getElementById('taskSelect').value;
+                const notes = document.getElementById('taskNotes').value;
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('taskSelectionModal'));
+                if (modal) {
+                    modal.hide();
+                    $('.modal-backdrop').remove();
+                }
+
+                startTimer(activeTimer.ticketId, {
+                    taskId: taskId,
+                    notes: notes
+                });
+            });
+
+            // Add pause button functionality
+            document.querySelectorAll('.btn-pause').forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (activeTimer.interval && !activeTimer.isPaused) {
+                        pauseTimer();
+                    } else {
+                        resumeTimer();
+                    }
+                });
+            });
+
+            // Handle page unload
+            // window.addEventListener('beforeunload', function () {
+            //     if (activeTimer.interval) {
+            //         stopTimer();
+            //     }
+            // });
+
+            $('#startTaskTimer').click(function () {
+                selectedTask = $('#taskSelect').val();
+                selectedTaskNotes = $('#taskNotes').val();
+                $('#taskSelectionModal').modal('hide');
+
+                // Start the timer with the selected task
+                startTimer(activeTimer.ticketId, {
+                    taskId: selectedTask,
+                    notes: selectedTaskNotes
+                });
+            });
+        });
+    </script>
 }
-@* @using PedersenGroupTimeClock.Helpers *@
-@* @using static PedersenGroupTimeClock.Models.Enums *@
-
-@* @model IEnumerable<Ticket> *@
-
-@* @{ *@
-@*     ViewData["Title"] = "Tickets"; *@
-@* } *@
-
-@* <div class="container-fluid px-4"> *@
-@*     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center my-3 my-md-4 gap-2"> *@
-@*         <h2 class="fw-bold mb-0">Ticket Management</h2> *@
-@*         <a asp-action="Create" class="btn btn-primary"> *@
-@*             <i class="fas fa-plus"></i> New Ticket *@
-@*         </a> *@
-@*     </div> *@
-
-@*     <div class="col-lg-6"> *@
-@*         <div class="card shadow-sm mb-4"> *@
-@*             <div class="card-header bg-white py-3"> *@
-@*                 <div class="row g-3"> *@
-@*                     <div class="col-12 col-md-6"> *@
-@*                         <div class="input-group"> *@
-@*                             <span class="input-group-text bg-transparent"> *@
-@*                                 <i class="fas fa-search text-muted"></i> *@
-@*                             </span> *@
-@*                             <input type="text" id="ticketSearch" *@
-@*                                    class="form-control border-start-0" *@
-@*                                    placeholder="Search tickets..."> *@
-@*                         </div> *@
-@*                     </div> *@
-@*                     <div class="col-12 col-md-6"> *@
-@*                         <div class="d-flex gap-2 justify-content-start justify-content-md-end"> *@
-@*                             <select class="form-select" id="statusFilter" style="max-width: 200px;"> *@
-@*                                 <option value="">All Statuses</option> *@
-@*                                 @foreach (TicketStatus status in Enum.GetValues(typeof(TicketStatus))) *@
-@*                                 { *@
-@*                                     <option value="@status">@status</option> *@
-@*                                 } *@
-@*                             </select> *@
-@*                             <select class="form-select" id="priorityFilter" style="max-width: 200px;"> *@
-@*                                 <option value="">All Priorities</option> *@
-@*                                 @foreach (TicketPriority priority in Enum.GetValues(typeof(TicketPriority))) *@
-@*                                 { *@
-@*                                     <option value="@priority">@priority</option> *@
-@*                                 } *@
-@*                             </select> *@
-@*                             <select class="form-select" id="clientFilter" style="max-width: 200px;"> *@
-@*                                 <option value="">All Clients</option> *@
-@*                                 @if (ViewBag.Clients != null) *@
-@*                                 { *@
-@*                                     @foreach (var client in ViewBag.Clients) *@
-@*                                     { *@
-@*                                         <option value="@client.Value">@client.Text</option> *@
-@*                                     } *@
-@*                                 } *@
-@*                             </select> *@
-@*                         </div> *@
-@*                     </div> *@
-@*                 </div> *@
-@*             </div> *@
-@*         </div> *@
-
-@*         <!-- Ticket items --> *@
-@*         <div class="row g-3"> *@
-@*             @foreach (var ticket in Model) *@
-@*             { *@
-@*                 <div class="col-12"> *@
-@*                     <div class="card ticket-item" *@
-@*                          data-status="@ticket.Status" *@
-@*                          data-priority="@ticket.Priority" *@
-@*                          data-client-id="@ticket.ClientId"> *@
-@*                         <div class="card-body"> *@
-@*                             <div class="row g-3"> *@
-@*                                 <div class="col-12 col-lg-9"> *@
-@*                                     <!-- Ticket header --> *@
-@*                                     <div class="d-flex flex-wrap gap-2 align-items-center mb-2"> *@
-@*                                         <h5 class="mb-0 me-auto">@ticket.Title</h5> *@
-@*                                         @{ *@
-@*                                             var statusBadgeClass = ((TicketStatus)ticket.Status) switch *@
-@*                                             { *@
-@*                                                 TicketStatus.New => "primary", *@
-@*                                                 TicketStatus.InProgress => "warning", *@
-@*                                                 TicketStatus.OnHold => "info", *@
-@*                                                 TicketStatus.Resolved => "success", *@
-@*                                                 TicketStatus.Closed => "secondary", *@
-@*                                                 _ => "dark" *@
-@*                                             }; *@
-
-@*                                             var priorityBadgeClass = ((TicketPriority)ticket.Priority) switch *@
-@*                                             { *@
-@*                                                 TicketPriority.Low => "success", *@
-@*                                                 TicketPriority.Medium => "info", *@
-@*                                                 TicketPriority.High => "warning", *@
-@*                                                 TicketPriority.Critical => "danger", *@
-@*                                                 _ => "secondary" *@
-@*                                             }; *@
-@*                                         } *@
-
-@*                                         <span class="badge bg-@statusBadgeClass">@ticket.Status</span> *@
-@*                                         <span class="badge bg-@priorityBadgeClass">@ticket.Priority</span> *@
-@*                                     </div> *@
-
-@*                                     <!-- Ticket description --> *@
-@*                                     <p class="text-muted mb-3">@ticket.Description</p> *@
-
-@*                                     <!-- Ticket metadata --> *@
-@*                                     <div class="d-flex flex-wrap gap-3 text-muted small mb-3"> *@
-@*                                         <div> *@
-@*                                             <i class="far fa-user me-2"></i> *@
-@*                                             <span>@(ViewBag.EmployeeNames.ContainsKey(ticket.AssignedTo) ? ViewBag.EmployeeNames[ticket.AssignedTo] : "Unassigned")</span> *@
-@*                                         </div> *@
-@*                                         <div> *@
-@*                                             <i class="far fa-building me-2"></i> *@
-@*                                             <span>@(ViewBag.ClientNames.ContainsKey(ticket.ClientId) ? ViewBag.ClientNames[ticket.ClientId] : "No Client")</span> *@
-@*                                         </div> *@
-@*                                         <div> *@
-@*                                             <i class="far fa-calendar me-1"></i> *@
-@*                                             @ticket.CreatedAt.ToString("MMM dd, yyyy") *@
-@*                                         </div> *@
-@*                                     </div> *@
-
-@*                                     <!-- Progress bar --> *@
-@*                                     <div class="progress mb-2" style="height: 20px;"> *@
-@*                                         @{ *@
-@*                                             var percentageUsed = ticket.BudgetHours > 0 *@
-@*                                             ? (decimal)ticket.TotalHoursSpent / ticket.BudgetHours * 100 *@
-@*                                             : 0; *@
-@*                                             var progressClass = percentageUsed switch *@
-@*                                             { *@
-@*                                                 > 100 => "bg-danger", *@
-@*                                                 > 75 => "bg-warning", *@
-@*                                                 _ => "bg-success" *@
-@*                                             }; *@
-@*                                         } *@
-@*                                         <div class="progress-bar @progressClass" *@
-@*                                              role="progressbar" *@
-@*                                              style="width: @Math.Min(percentageUsed, 100)%" *@
-@*                                              aria-valuenow="@percentageUsed" *@
-@*                                              aria-valuemin="0" *@
-@*                                              aria-valuemax="100"> *@
-@*                                             @ticket.TotalHoursSpent.ToString("F1")h / @ticket.BudgetHours.ToString("F1")h *@
-@*                                         </div> *@
-@*                                     </div> *@
-
-@*                                     <!-- Cost info --> *@
-@*                                     <div class="mt-2 text-muted small"> *@
-@*                                         <span class="me-3"> *@
-@*                                             <i class="fas fa-dollar-sign me-1"></i> *@
-@*                                             Rate: @(ticket.Rate?.HourlyRate.ToString("C2") ?? "$0.00")/h *@
-@*                                         </span> *@
-@*                                         <span class="me-3"> *@
-@*                                             @{ *@
-@*                                                 var budget = ticket.Rate != null ? (ticket.Rate.HourlyRate * ticket.BudgetHours) : 0; *@
-@*                                                 var actualCost = ticket.Rate != null ? (ticket.Rate.HourlyRate * (decimal)ticket.TotalHoursSpent) : 0; *@
-@*                                                 var isOverBudget = actualCost > budget; *@
-@*                                             } *@
-@*                                             <i class="fas fa-coins me-1"></i> *@
-@*                                             <span class="@(isOverBudget ? "text-danger" : "text-muted")"> *@
-@*                                                 Actual Cost: @((ticket.Rate != null ? (ticket.Rate.HourlyRate * (decimal)ticket.TotalHoursSpent).ToString("C2") : "$0.00")) *@
-@*                                             </span> *@
-@*                                         </span> *@
-@*                                         <span> *@
-@*                                             <i class="fas fa-coins me-1"></i> *@
-@*                                             Budget: @((ticket.Rate != null ? (ticket.BudgetHours * (decimal)ticket.Rate.HourlyRate).ToString("C2") : "$0.00")) *@
-@*                                         </span> *@
-@*                                     </div> *@
-@*                                 </div> *@
-
-@*                                 <div class="col-12 col-lg-3"> *@
-@*                                     <div class="d-flex flex-row flex-lg-column gap-3 justify-content-start justify-content-lg-end"> *@
-@*                                         <!-- Timer controls --> *@
-@*                                         <div class="timer-controls" data-ticket-id="@ticket.Id"> *@
-@*                                             <div class="d-flex gap-2 align-items-center"> *@
-@*                                                 <button class="btn btn-outline-primary btn-timer" *@
-@*                                                         data-ticket-id="@ticket.Id"> *@
-@*                                                     <i class="fas fa-play"></i> *@
-@*                                                 </button> *@
-@*                                                 <span id="timer-@ticket.Id" class="timer-display"></span> *@
-@*                                                 <span id="total-time-@ticket.Id" *@
-@*                                                       class="total-time" *@
-@*                                                       data-total="@ticket.TotalHoursSpent"> *@
-@*                                                     @ticket.TotalHoursSpent.ToString("F1")h *@
-@*                                                 </span> *@
-@*                                             </div> *@
-@*                                         </div> *@
-
-@*                                         <!-- Action buttons --> *@
-@*                                         <div class="btn-group"> *@
-@*                                             <a asp-action="Edit" asp-route-id="@ticket.Id" *@
-@*                                                class="btn btn-outline-secondary"> *@
-@*                                                 <i class="fas fa-edit"></i> *@
-@*                                             </a> *@
-@*                                             <button type="button" class="btn btn-outline-info" *@
-@*                                                     data-bs-toggle="modal" *@
-@*                                                     data-bs-target="#ticketModal" *@
-@*                                                     data-ticket-id="@ticket.Id"> *@
-@*                                                 <i class="fas fa-eye"></i> *@
-@*                                             </button> *@
-@*                                         </div> *@
-@*                                     </div> *@
-@*                                 </div> *@
-@*                             </div> *@
-@*                         </div> *@
-@*                     </div> *@
-@*                 </div> *@
-@*             } *@
-@*         </div> *@
-@*     </div> *@
-@* </div> *@
-
-@* <!-- Ticket Details Modal --> *@
-@* <div class="modal fade" id="ticketModal" tabindex="-1"> *@
-@*     <div class="modal-dialog modal-dialog-scrollable modal-lg"> *@
-@*         <div class="modal-content"> *@
-@*             <div class="modal-header"> *@
-@*                 <h5 class="modal-title">Ticket Details</h5> *@
-@*                 <div class="d-flex gap-2 mx-3"> *@
-@*                     <div id="modalTimerControls"></div> *@
-@*                 </div> *@
-@*                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button> *@
-@*             </div> *@
-@*             <div class="modal-body"> *@
-@*                 <!-- Content loaded dynamically --> *@
-@*             </div> *@
-@*         </div> *@
-@*     </div> *@
-@* </div> *@
-
-<!-- Task Selection Modal -->
-@* <div class="modal fade" id="taskSelectionModal" tabindex="-1"> *@
-@*     <div class="modal-dialog"> *@
-@*         <div class="modal-content"> *@
-@*             <div class="modal-header"> *@
-@*                 <h5 class="modal-title">What are you working on?</h5> *@
-@*                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button> *@
-@*             </div> *@
-@*             <div class="modal-body"> *@
-@*                 <div class="mb-3"> *@
-@*                     <label class="form-label">Select Task</label> *@
-@*                     <select class="form-select" id="taskSelect"> *@
-@*                         <option value="">General Work</option> *@
-@*                     </select> *@
-@*                 </div> *@
-@*                 <div class="mb-3"> *@
-@*                     <label class="form-label">Notes</label> *@
-@*                     <textarea class="form-control" id="taskNotes" rows="3"></textarea> *@
-@*                 </div> *@
-@*             </div> *@
-@*             <div class="modal-footer"> *@
-@*                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button> *@
-@*                 <button type="button" class="btn btn-primary" id="startTaskTimer">Start Timer</button> *@
-@*             </div> *@
-@*         </div> *@
-@*     </div> *@
-@* </div>
-
-@* @section Styles { *@
-@*     <style> *@
-@*         .hover-bg-light:hover { *@
-@*             background-color: rgba(0,0,0,0.03); *@
-@*             transition: background-color 0.2s; *@
-@*         } *@
-
-@*         .btn-timer.active { *@
-@*             background-color: var(--bs-danger); *@
-@*             color: white; *@
-@*             border-color: var(--bs-danger); *@
-@*         } *@
-
-@*             .btn-timer.active i::before { *@
-@*                 content: "\f04c"; *@
-@*             } *@
-@*     </style> *@
-@* } *@
-
-@* @section Scripts { *@
-@*     <script> *@
-@*         $(document).ready(function () { *@
-@*             // Search functionality *@
-@*             $('#ticketSearch').on('keyup', function () { *@
-@*                 const value = $(this).val().toLowerCase(); *@
-@*                 $('.ticket-item').filter(function () { *@
-@*                     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1) *@
-@*                 }); *@
-@*             }); *@
-
-@*             // Status filter *@
-@*             $('#statusFilter').change(function () { *@
-@*                 filterTickets(); *@
-@*             }); *@
-
-@*             // Priority filter *@
-@*             $('#priorityFilter').change(function () { *@
-@*                 filterTickets(); *@
-@*             }); *@
-
-@*             // Client filter *@
-@*             $('#clientFilter').change(function () { *@
-@*                 filterTickets(); *@
-@*             }); *@
-
-@*             function filterTickets() { *@
-@*                 const status = $('#statusFilter').val().toLowerCase(); *@
-@*                 const priority = $('#priorityFilter').val().toLowerCase(); *@
-@*                 const client = $('#clientFilter').val(); *@
-
-@*                 $('.ticket-item').each(function () { *@
-@*                     const ticketStatus = $(this).find('.badge').first().text().toLowerCase(); *@
-@*                     const ticketPriority = $(this).find('.badge').last().text().toLowerCase(); *@
-@*                     const ticketClient = $(this).data('client-id'); *@
-
-@*                     const statusMatch = !status || ticketStatus === status; *@
-@*                     const priorityMatch = !priority || ticketPriority === priority; *@
-@*                     const clientMatch = !client || ticketClient === client; *@
-
-@*                     $(this).toggle(statusMatch && priorityMatch && clientMatch); *@
-@*                 }); *@
-@*             } *@
-
-@*             // Modal loading *@
-@*             $('#ticketModal').on('show.bs.modal', function (event) { *@
-@*                 const button = $(event.relatedTarget); *@
-@*                 const ticketId = button.data('ticket-id'); *@
-@*                 const modal = $(this); *@
-
-@*                 // Load ticket details *@
-@*                 $.get(`/Tickets/Details/${ticketId}`, function (data) { *@
-@*                     modal.find('.modal-body').html(data); *@
-
-@*                     // First clear existing controls, then clone new ones *@
-@*                     modal.find('#modalTimerControls').empty(); *@
-@*                     const timerControls = $(`.timer-controls[data-ticket-id="${ticketId}"]`).clone(true); *@
-@*                     modal.find('#modalTimerControls').html(timerControls); *@
-
-@*                     // Sync timer state if active *@
-@*                     if (activeTimer.ticketId === ticketId) { *@
-@*                         updateTimerDisplay(); *@
-@*                     } *@
-@*                 }); *@
-@*             }); *@
-@*         }); *@
-@*     </script> *@
-@* } *@

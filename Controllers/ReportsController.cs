@@ -50,7 +50,8 @@ namespace PedersenGroupTimeClock.Controllers
                     }).ToList(),
                 ClientStats = await GetClientStats(clients, startDate, endDate),
                 YoyComparison = await GetYearOverYearComparison(clients, startDate, endDate, lastYearStartDate, lastYearEndDate),
-                QuarterlyStats = await GetQuarterlyBreakdown(clients, startDate, endDate)
+                QuarterlyStats = await GetQuarterlyBreakdown(clients, startDate, endDate),
+                FiscalYearStart = new DateTime(fiscalYear.Value, 4, 1)
             };
 
             return View(viewModel);

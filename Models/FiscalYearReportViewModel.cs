@@ -6,6 +6,7 @@ namespace PedersenGroupTimeClock.Models
     {
         public string CurrentFiscalYear { get; set; }
         public string DateRange { get; set; }
+        public DateTime FiscalYearStart { get; set; }   
         public List<SelectListItem> AvailableFiscalYears { get; set; }
         public List<ClientFiscalYearStats> ClientStats { get; set; }
         public YearOverYearComparison YoyComparison { get; set; }

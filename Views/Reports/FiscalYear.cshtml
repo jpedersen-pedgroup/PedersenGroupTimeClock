@@ -85,7 +85,13 @@
         <div class="col-7">
             <div class="card">
                 <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">Weekly Hours by Client</h5>
+ <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Hours by Client</h5>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-primary active" id="weeklyViewBtn">Weekly</button>
+        <button type="button" class="btn btn-outline-primary" id="monthlyViewBtn">Monthly</button>
+    </div>
+
                 </div>
                 <div class="card-body">
                     <div style="height: 400px;">
@@ -93,6 +99,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         </div>
 
         <!-- Quarterly Breakdown -->
@@ -197,211 +204,284 @@
     <script>
          window.jspdf = window.jspdf || {};
         document.addEventListener('DOMContentLoaded', function() {
-            
-            window.exportToPdf = exportToPdf;
-            window.exportToExcel = exportToExcel;
+                  // Prepare the data
+                  const clientStats = @Json.Serialize(Model.ClientStats);
+                  const quarterlyStats = @Json.Serialize(Model.QuarterlyStats);
+                  const yoyComparison = @Json.Serialize(Model.YoyComparison);
+                  const fiscalYearStart = new Date(@Json.Serialize(Model.FiscalYearStart));
+                  let hoursChart;
 
-            // Prepare the data
-            const clientStats = @Html.Raw(Json.Serialize(Model.ClientStats));
-            const quarterlyStats = @Html.Raw(Json.Serialize(Model.QuarterlyStats));
-            const yoyComparison = @Html.Raw(Json.Serialize(Model.YoyComparison));
+                  // Color schemes
+                  const colors = [
+                      'rgba(54, 162, 235, 0.7)',
+                      'rgba(255, 99, 132, 0.7)',
+                      'rgba(255, 206, 86, 0.7)',
+                      'rgba(75, 192, 192, 0.7)',
+                      'rgba(153, 102, 255, 0.7)',
+                      'rgba(255, 159, 64, 0.7)'
+                  ];
 
-            // Color schemes
-            const colors = [
-                'rgba(54, 162, 235, 0.7)',
-                'rgba(255, 99, 132, 0.7)',
-                'rgba(255, 206, 86, 0.7)',
-                'rgba(75, 192, 192, 0.7)',
-                'rgba(153, 102, 255, 0.7)',
-                'rgba(255, 159, 64, 0.7)'
-            ];
+                  // Function to group data into calendar months
+                  function getMonthlyData(clientStats) {
+                      return clientStats.map(client => {
+                          const monthlyHours = client.weeklyData.reduce((months, week) => {
+                              const weekStartDate = new Date(fiscalYearStart);
+                              weekStartDate.setDate(weekStartDate.getDate() + (week.weekNumber * 7));
 
-        // Weekly Hours Stacked Bar Chart
-                   const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
-                   new Chart(weeklyCtx, {
-                       type: 'bar',
-                       data: {
-                           labels: clientStats[0].weeklyData.map(w => w.weekLabel),
-                           datasets: [
-                               ...clientStats.map((client, index) => ({
-                                   label: client.clientName,
-                                   data: client.weeklyData.map(w => w.hours),
-                                   backgroundColor: colors[index % colors.length],
-                                   borderColor: colors[index % colors.length].replace('0.7', '1'),
-                                   borderWidth: 1,
-                                   stack: 'stack0'
-                               })),
-                               {
-                                   label: 'Target',
-                                   data: new Array(clientStats[0].weeklyData.length).fill(45),
-                                   type: 'line',
-                                   borderColor: 'rgba(255, 0, 0, 0.7)',
-                                   borderWidth: 2,
-                                   borderDash: [5, 5],
-                                   fill: false,
-                                   stack: 'stack1'
-                               }
-                           ]
-                       },
-                       options: {
-                           responsive: true,
-                           maintainAspectRatio: false,
-                           scales: {
-                               x: {
-                                   stacked: true,
-                               },
-                               y: {
-                                   stacked: true,
-                                   beginAtZero: true,
-                                   max: 60,
-                                   title: {
-                                       display: true,
-                                       text: 'Hours'
-                                   }
-                               }
-                           },
-                           plugins: {
-                               title: {
-                                   display: true,
-                                   text: 'Weekly Hours Distribution'
-                               },
-                               legend: {
-                                   position: 'right'
-                               },
-                               tooltip: {
-                                   callbacks: {
-                                       label: function(context) {
-                                           return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} hours`;
-                                       }
-                                   }
-                               }
-                           }
-                       },
-                       plugins: [{
-                           afterDraw: function(chart) {
-                               const ctx = chart.ctx;
-                               const meta = chart.getDatasetMeta(0); // Get the first dataset
-                               ctx.save();
-                               ctx.textAlign = 'center';
-                               ctx.textBaseline = 'bottom';
-                               ctx.font = '12px Arial';
-                               ctx.fillStyle = '#666';
+                              const monthKey = weekStartDate.toLocaleString('default', { month: 'short' });
 
-                               // Calculate and draw total for each week
-                               chart.data.labels.forEach((label, i) => {
-                                   const total = clientStats.reduce((sum, client) =>
-                                       sum + client.weeklyData[i].hours, 0);
-                                   const x = meta.data[i].x;
-                                   const y = chart.scales.y.getPixelForValue(total);
-                                   ctx.fillText(`${total.toFixed(1)}h`, x, y - 5);
-                               });
-                               ctx.restore();
-                           }
-                       }]
-                   });
+                              if (!months[monthKey]) {
+                                  months[monthKey] = 0;
+                              }
+                              months[monthKey] += week.hours;
+                              return months;
+                          }, {});
 
-            // Quarterly Performance Chart
-            const quarterlyCtx = document.getElementById('quarterlyChart').getContext('2d');
-            new Chart(quarterlyCtx, {
-                type: 'bar',
-                data: {
-                    labels: quarterlyStats.map(q => q.quarterLabel),
-                    datasets: [
-                        {
-                            label: 'Total Hours',
-                            data: quarterlyStats.map(q => q.totalHours),
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Active Clients',
-                            data: quarterlyStats.map(q => q.activeClients),
-                            type: 'line',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 2,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Hours'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Active Clients'
-                            },
-                            grid: {
-                                drawOnChartArea: false
-                            }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Quarterly Performance'
-                        }
-                    }
-                }
-            });
+                          return {
+                              clientName: client.clientName,
+                              monthlyData: Object.entries(monthlyHours)
+                                  .map(([month, hours]) => ({
+                                      month: month,
+                                      hours: hours
+                                  }))
+                                  .sort((a, b) => {
+                                      const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+                                                    'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+                                      return months.indexOf(a.month) - months.indexOf(b.month);
+                                  })
+                          };
+                      });
+                  }
 
-            // Year over Year Comparison Chart
-            const yoyCtx = document.getElementById('yoyChart').getContext('2d');
-            new Chart(yoyCtx, {
-                type: 'bar',
-                data: {
-                    labels: yoyComparison.clientComparisons.map(c => c.clientName),
-                    datasets: [
-                        {
-                            label: 'Last Year',
-                            data: yoyComparison.clientComparisons.map(c => c.lastYearHours),
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'This Year',
-                            data: yoyComparison.clientComparisons.map(c => c.thisYearHours),
-                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Hours'
-                            }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Year over Year Comparison'
-                        }
-                    }
-                }
-            });
-        });
+                  function createHoursChart(viewType = 'weekly') {
+                      const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+
+                      if (hoursChart) {
+                          hoursChart.destroy();
+                      }
+
+                      const isWeekly = viewType === 'weekly';
+                      const data = isWeekly ? clientStats : getMonthlyData(clientStats);
+                      const labels = isWeekly
+                          ? clientStats[0].weeklyData.map(w => w.weekLabel)
+                          : data[0].monthlyData.map(m => m.month);
+
+                      hoursChart = new Chart(weeklyCtx, {
+                          type: 'bar',
+                          data: {
+                              labels: labels,
+                              datasets: [
+                                  ...data.map((client, index) => ({
+                                      label: client.clientName,
+                                      data: isWeekly
+                                          ? client.weeklyData.map(w => w.hours)
+                                          : client.monthlyData.map(m => m.hours),
+                                      backgroundColor: colors[index % colors.length],
+                                      borderColor: colors[index % colors.length].replace('0.7', '1'),
+                                      borderWidth: 1,
+                                      stack: 'stack0'
+                                  })),
+                                  {
+                                      label: 'Target',
+                                      data: labels.map(label => {
+                                          if (isWeekly) return 45;
+                                          const workingDays = {
+                                              'Apr': 21, 'May': 22, 'Jun': 21, 'Jul': 21, 'Aug': 23, 'Sep': 21,
+                                              'Oct': 22, 'Nov': 21, 'Dec': 19, 'Jan': 22, 'Feb': 20, 'Mar': 21
+                                          };
+                                          return (workingDays[label] || 21) * 9;
+                                      }),
+                                      type: 'line',
+                                      borderColor: 'rgba(255, 0, 0, 0.7)',
+                                      borderWidth: 2,
+                                      borderDash: [5, 5],
+                                      fill: false,
+                                      stack: 'stack1'
+                                  }
+                              ]
+                          },
+                          options: {
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              scales: {
+                                  x: {
+                                      stacked: true,
+                                  },
+                                  y: {
+                                      stacked: true,
+                                      beginAtZero: true,
+                                      max: isWeekly ? 60 : 300,
+                                      title: {
+                                          display: true,
+                                          text: 'Hours'
+                                      }
+                                  }
+                              },
+                              plugins: {
+                                  title: {
+                                      display: true,
+                                      text: `${viewType.charAt(0).toUpperCase() + viewType.slice(1)} Hours Distribution`
+                                  },
+                                  legend: {
+                                      position: 'right'
+                                  },
+                                  tooltip: {
+                                      callbacks: {
+                                          label: function(context) {
+                                              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} hours`;
+                                          }
+                                      }
+                                  }
+                              }
+                          },
+                          plugins: [{
+                              afterDraw: function(chart) {
+                                  const ctx = chart.ctx;
+                                  const meta = chart.getDatasetMeta(0);
+                                  ctx.save();
+                                  ctx.textAlign = 'center';
+                                  ctx.textBaseline = 'bottom';
+                                  ctx.font = '12px Arial';
+                                  ctx.fillStyle = '#666';
+
+                                  chart.data.labels.forEach((label, i) => {
+                                      const total = data.reduce((sum, client) => {
+                                          const hours = isWeekly
+                                              ? client.weeklyData[i]?.hours || 0
+                                              : client.monthlyData[i]?.hours || 0;
+                                          return sum + hours;
+                                      }, 0);
+
+                                      const x = meta.data[i].x;
+                                      const y = chart.scales.y.getPixelForValue(total);
+                                      ctx.fillText(`${total.toFixed(1)}h`, x, y - 5);
+                                  });
+                                  ctx.restore();
+                              }
+                          }]
+                      });
+                  }
+
+                  // Initialize the hours chart buttons
+                  document.getElementById('weeklyViewBtn').addEventListener('click', function() {
+                      this.classList.add('active');
+                      document.getElementById('monthlyViewBtn').classList.remove('active');
+                      createHoursChart('weekly');
+                  });
+
+                  document.getElementById('monthlyViewBtn').addEventListener('click', function() {
+                      this.classList.add('active');
+                      document.getElementById('weeklyViewBtn').classList.remove('active');
+                      createHoursChart('monthly');
+                  });
+
+                  // Create initial hours chart
+                  createHoursChart('weekly');
+
+                  // Quarterly Performance Chart
+                  const quarterlyCtx = document.getElementById('quarterlyChart').getContext('2d');
+                  new Chart(quarterlyCtx, {
+                      type: 'bar',
+                      data: {
+                          labels: quarterlyStats.map(q => q.quarterLabel),
+                          datasets: [
+                              {
+                                  label: 'Total Hours',
+                                  data: quarterlyStats.map(q => q.totalHours),
+                                  backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                                  borderColor: 'rgba(54, 162, 235, 1)',
+                                  borderWidth: 1,
+                                  yAxisID: 'y'
+                              },
+                              {
+                                  label: 'Active Clients',
+                                  data: quarterlyStats.map(q => q.activeClients),
+                                  type: 'line',
+                                  borderColor: 'rgba(255, 99, 132, 1)',
+                                  borderWidth: 2,
+                                  yAxisID: 'y1'
+                              }
+                          ]
+                      },
+                      options: {
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          scales: {
+                              y: {
+                                  type: 'linear',
+                                  display: true,
+                                  position: 'left',
+                                  title: {
+                                      display: true,
+                                      text: 'Hours'
+                                  }
+                              },
+                              y1: {
+                                  type: 'linear',
+                                  display: true,
+                                  position: 'right',
+                                  title: {
+                                      display: true,
+                                      text: 'Active Clients'
+                                  },
+                                  grid: {
+                                      drawOnChartArea: false
+                                  }
+                              }
+                          },
+                          plugins: {
+                              title: {
+                                  display: true,
+                                  text: 'Quarterly Performance'
+                              }
+                          }
+                      }
+                  });
+
+                  // Year over Year Comparison Chart
+                  const yoyCtx = document.getElementById('yoyChart').getContext('2d');
+                  new Chart(yoyCtx, {
+                      type: 'bar',
+                      data: {
+                          labels: yoyComparison.clientComparisons.map(c => c.clientName),
+                          datasets: [
+                              {
+                                  label: 'Last Year',
+                                  data: yoyComparison.clientComparisons.map(c => c.lastYearHours),
+                                  backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                                  borderColor: 'rgba(54, 162, 235, 1)',
+                                  borderWidth: 1
+                              },
+                              {
+                                  label: 'This Year',
+                                  data: yoyComparison.clientComparisons.map(c => c.thisYearHours),
+                                  backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                                  borderColor: 'rgba(255, 99, 132, 1)',
+                                  borderWidth: 1
+                              }
+                          ]
+                      },
+                      options: {
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          scales: {
+                              y: {
+                                  beginAtZero: true,
+                                  title: {
+                                      display: true,
+                                      text: 'Hours'
+                                  }
+                              }
+                          },
+                          plugins: {
+                              title: {
+                                  display: true,
+                                  text: 'Year over Year Comparison'
+                              }
+                          }
+                      }
+                  });
+              });
 
         // Export Functions
         function exportToPdf() {
